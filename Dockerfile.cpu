@@ -1,0 +1,94 @@
+FROM ubuntu:16.04
+
+MAINTAINER Abhishek Kumar <abkumar@ucsd.edu>
+
+ARG ARCH=cpu
+ARG VER_TF=0.10.0
+ARG VER_THEANO=rel-0.8.2
+ARG VER_TORCH=latest
+
+# Install some dependencies
+RUN apt-get update && apt-get install -y \
+    cmake \
+    curl \
+    g++ \
+    gfortran \
+    git \
+    pkg-config \
+    python-dev \
+    python-pip \
+    software-properties-common \
+    unzip \
+    vim \
+    wget \
+    && \
+  apt-get clean && \
+  apt-get autoremove && \
+  rm -rf /var/lib/apt/lists/*
+
+# Install pip
+RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
+  python3 get-pip.py && \
+  rm get-pip.py
+
+# Install common python libraries through apt
+RUN apt-get update && apt-get install -y \
+    python-numpy \
+    python-scipy \
+    python-nose \
+    python-h5py \
+    python-skimage \
+    python-matplotlib \
+    python-pandas \
+    python-sklearn \
+    python-sympy \
+    && \
+  apt-get clean && \
+  apt-get autoremove && \
+  rm -rf /var/lib/apt/lists/*
+
+# Install other useful Python packages using pip
+RUN pip3 --no-cache-dir install --upgrade ipython && \
+  pip3 --no-cache-dir install \
+    Cython \
+    ipykernel \
+    jupyter \
+    path.py \
+    Pillow \
+    pygments \
+    six \
+    sphinx \
+    wheel \
+    zmq \
+    && \
+  python -m ipykernel.kernelspec
+
+# Install TensorFlow
+RUN pip3 --no-cache-dir install \
+  https://storage.googleapis.com/tensorflow/linux/${ARCH}/tensorflow-${VER_TF}-cp34-cp34m-linux_x86_64.whl
+
+# Install Theano and set up Theano config (.theanorc) OpenBLAS
+RUN pip --no-cache-dir install git+git://github.com/Theano/Theano.git@${VER_THEANO} && \
+  \
+  echo "[global]\ndevice=cpu\nfloatX=float32\nmode=FAST_RUN" \
+  > /root/.theanorc
+
+# Install Torch
+RUN git clone https://github.com/torch/distro.git /root/torch --recursive && \
+  cd /root/torch && \
+  bash install-deps && \
+  yes no | ./install.sh
+
+RUN source ~/.bashrc
+
+# Install luarocks packages
+RUN luarocks install nn && \
+  luarocks install torch
+  luarocks install dpnn
+  luarocks install torchx
+
+# Instal Elemental Research RNN https://github.com/Element-Research/rnn
+RUN luarocks install rnn
+
+WORKDIR "/root"
+CMD ["/bin/bash"]
